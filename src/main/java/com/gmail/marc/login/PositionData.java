@@ -101,7 +101,7 @@ public class PositionData {
     }
 
     public static boolean checkFqn(String fqn) {
-        Pattern pattern = Pattern.compile("^(world|nether|end)\\.[\\w\\d-+_]+\\.[\\w\\d-+_]+$"); // Needs to be 3 combinations of letters or digits or any of (+-_) divided by "."
+        Pattern pattern = Pattern.compile("^(world|nether|end)\\.[\\w\\d-_]+\\.[\\w\\d-_]+$"); // Needs to be 3 combinations of letters or digits or any of (+-_) divided by "."
         Matcher matcher = pattern.matcher(fqn);
         return matcher.find();
     }
@@ -118,6 +118,6 @@ public class PositionData {
     }
 
     public static String[] splitFqn(String fqn) {
-        return fqn.split("[\\.:]");
+        return fqn.split("\\.");
     }
 }

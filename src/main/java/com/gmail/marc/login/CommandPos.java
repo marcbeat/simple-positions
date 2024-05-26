@@ -74,7 +74,7 @@ public class CommandPos {
                         return executeBaseCommand(context.getSource(), action, query, null);
                     })
                 )
-                .then(Commands.argument("target", StringArgumentType.string())
+                .then(Commands.argument("target", StringArgumentType.word())
                     .executes(context -> {
                         String action = StringArgumentType.getString(context, "action");
                         String query = StringArgumentType.getString(context, "query");
