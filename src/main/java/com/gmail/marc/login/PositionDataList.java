@@ -7,18 +7,20 @@ import java.util.concurrent.CompletableFuture;
 public class PositionDataList {
     private List<PositionData> positions;
     public static final String QUERY_WILDCARD = "+";
+    private JsonWriter jsonWriter;
 
     public PositionDataList() {
+        jsonWriter = new JsonWriter(null);
         loadList();
     }
 
     private void loadList() {
-        positions = JsonUtil.readPositionsFromJson();
+        positions = jsonWriter.readPositionsFromJson();
     }
 
     public void saveList() {
         CompletableFuture.runAsync(() -> {
-            JsonUtil.writePositionsToJson(positions);
+            jsonWriter.writePositionsToJson(positions);
         });
     }
 

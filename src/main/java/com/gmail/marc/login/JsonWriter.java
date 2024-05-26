@@ -16,12 +16,17 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Collections;
 
-public class JsonUtil {
-    private static final String JSON_FILE_NAME = SimplePositions.MODID + ".json";
+public class JsonWriter {
+    private String jsonFileName = SimplePositions.MODID + ".json";
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Type POSITION_LIST_TYPE = new TypeToken<List<PositionData>>() {}.getType();
 
-    public static List<PositionData> readPositionsFromJson() {
+    public JsonWriter(String worldName) {
+        if (worldName != null && !worldName.equals(""))
+            jsonFileName = SimplePositions.MODID + "." + worldName.replace(" ", "-") + ".json";
+    }
+
+    public List<PositionData> readPositionsFromJson() {
         File jsonFile = getJsonFile();
         String filePath = jsonFile.getAbsolutePath();
         SimplePositions.LOGGER.debug("Loading data file from path: " + filePath);
@@ -44,7 +49,7 @@ public class JsonUtil {
         }
     }
 
-    public static void writePositionsToJson(List<PositionData> positions) {
+    public void writePositionsToJson(List<PositionData> positions) {
         String filePath = getJsonFile().getAbsolutePath();
         SimplePositions.LOGGER.debug("Saving data file to path: " + filePath);
         try (FileWriter writer = new FileWriter(filePath)) {
@@ -56,7 +61,7 @@ public class JsonUtil {
         }
     }
 
-    public static File getJsonFile() {
+    public File getJsonFile() {
         Path configDir = FMLPaths.CONFIGDIR.get();
         // Path modConfigDir = configDir.resolve(SimplePositions.MODID);
         // try {
@@ -70,7 +75,7 @@ public class JsonUtil {
         // } catch (IOException e) {
         //     SimplePositions.LOGGER.error("Couldn't create or find config directory:\n{}", e.getMessage());
         // }
-        File jsonFile = new File(configDir.toFile(), JSON_FILE_NAME);
+        File jsonFile = new File(configDir.toFile(), jsonFileName);
         return jsonFile;
     }
 }
