@@ -4,22 +4,24 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 
-import it.unimi.dsi.fastutil.Arrays;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
 import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Mod.EventBusSubscriber
 public class CommandPos {
+
     @SubscribeEvent
     public static void onRegisterCommands(RegisterCommandsEvent event) {
         register(event.getDispatcher());
@@ -28,95 +30,23 @@ public class CommandPos {
     private static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("pos")
             .then(Commands.argument("action", StringArgumentType.word())
-                .suggests((context, builder) -> builder.suggest("get").suggest("set").suggest("lists").suggest("dims").buildFuture())
+                .suggests((context, builder) -> builder.suggest("get").suggest("set").suggest("rem").suggest("update").suggest("lists").suggest("dims").buildFuture())
                 .executes(context -> {
                     String action = StringArgumentType.getString(context, "action");
-                    return executeBaseCommand(context.getSource(), action, null, null, null);
+                    return executeBaseCommand(context.getSource(), action, null);
                 })
-                .then(Commands.argument("arg1", StringArgumentType.word())
-                    .suggests((context, builder) -> builder.suggest("dim=").suggest("list=").buildFuture())
+                .then(Commands.argument("query", StringArgumentType.word())
                     .executes(context -> {
                         String action = StringArgumentType.getString(context, "action");
-                        String arg1 = StringArgumentType.getString(context, "arg1");
-                        String dim = null;
-                        String list = null;
-                        String name = null;
-                        if (arg1.startsWith("dim="))
-                            dim = arg1;
-                        else if (arg1.startsWith("list="))
-                            list = arg1;
-                        else
-                            name = arg1;
-                        return executeBaseCommand(context.getSource(), action, name, dim, list);
-                    })
-                )
-                .then(Commands.argument("arg2", StringArgumentType.string())
-                    .suggests((context, builder) -> builder.suggest("dim=").suggest("list=").buildFuture())
-                    .executes(context -> {
-                        String action = StringArgumentType.getString(context, "action");
-                        String arg1 = StringArgumentType.getString(context, "arg1");
-                        String arg2 = StringArgumentType.getString(context, "arg2");
-                        String dim = null;
-                        String list = null;
-                        String name = null;
-
-                        if (arg1.startsWith("dim="))
-                            dim = arg1;
-                        else if (arg1.startsWith("list="))
-                            list = arg1;
-                        else
-                            name = arg1;
-                        
-                        if (arg2.startsWith("dim="))
-                            dim = arg2;
-                        else if (arg2.startsWith("list="))
-                            list = arg2;
-                        else
-                            name = arg2;
-
-                        return executeBaseCommand(context.getSource(), action, name, dim, list);
-                    })
-                )
-                .then(Commands.argument("arg3", StringArgumentType.string())
-                    .suggests((context, builder) -> builder.suggest("dim=").suggest("list=").buildFuture())
-                    .executes(context -> {
-                        String action = StringArgumentType.getString(context, "action");
-                        String arg1 = StringArgumentType.getString(context, "arg1");
-                        String arg2 = StringArgumentType.getString(context, "arg2");
-                        String arg3 = StringArgumentType.getString(context, "arg3");
-                        String dim = null;
-                        String list = null;
-                        String name = null;
-
-                        if (arg1.startsWith("dim="))
-                            dim = arg1;
-                        else if (arg1.startsWith("list="))
-                            list = arg1;
-                        else
-                            name = arg1;
-                        
-                        if (arg2.startsWith("dim="))
-                            dim = arg2;
-                        else if (arg2.startsWith("list="))
-                            list = arg2;
-                        else
-                            name = arg2;
-
-                        if (arg3.startsWith("dim="))
-                            dim = arg3;
-                        else if (arg3.startsWith("list="))
-                            list = arg3;
-                        else
-                            name = arg3;
-
-                        return executeBaseCommand(context.getSource(), action, name, dim, list);
+                        String query = StringArgumentType.getString(context, "query");
+                        return executeBaseCommand(context.getSource(), action, query);
                     })
                 )
             )
         );
     }
 
-    private static int executeBaseCommand(CommandSourceStack source, String action, String name, String dimArg, String listArg) {
+    private static int executeBaseCommand(CommandSourceStack source, String action, String query) {
         ServerPlayer player;
         try {
             player = source.getPlayerOrException();
@@ -127,63 +57,117 @@ public class CommandPos {
 
         if (action == "dims") {
             // Send dims to player in chat
-            player.sendSystemMessage(Component.literal("Possible dimensions: world, nether, end. Use with dim=<dimension>."));
+            player.sendSystemMessage(Component.literal("Possible dimensions: 'world', 'nether', 'end'."));
             return 1;
         }
-        else if (action == "dims") {
+        else if (action == "lists") {
             // Send existing lists to player in chat
+            String allLists = pdList.getLists().
             player.sendSystemMessage(Component.literal("Showing all lists."));
             return 1;
         }
-
-        // Get dim from dimArg
-        String dim = null;
-        if (dimArg == null)
-            dim = getPlayerDim(player);
-        else {
-            dim = dimArg.split("=")[1];
+        else if (action == "get") {
+            // Send saved positions to player in chat according to search query
+            List<PositionData> savedPositions = pdList.get(fqn);
+            if (savedPositions.size() < 1)
+                player.sendSystemMessage(Component.literal(String.format("No position found matching the query '{}'.", query)));
+            else if (savedPositions.size() == 1) {
+                PositionData pos = savedPositions.get(0);
+                player.sendSystemMessage(Component.literal(String.format("X: {}, Y: {}, Z: {}, Dim: {}", pos.getX(), pos.getY(), pos.getZ(), pos.getDim())));
+            }
+            else {
+                String positionNames = savedPositions.stream().map(PositionData::getFQN).collect(Collectors.joining(", "));
+                player.sendSystemMessage(Component.literal(String.format("> 1 positions found: ", positionNames)));
+            }
+            return 1;
         }
-        ArrayList<String> allowedDims = new ArrayList<>();
-        allowedDims.add("world");
-        allowedDims.add("nether");
-        allowedDims.add("end");
-
-        if (allowedDims.contains(dim)) {
-            player.sendSystemMessage(Component.literal("Dimension: " + dim));
-            // Add your logic here
-        }
-        else {
-            player.sendSystemMessage(Component.literal("Dimension '" + dim + "' unknown. Use '/pos dims' to get a list of all allowed dims."));
-            return 0;
-        }
-
-        String list = "default";
-        if (listArg != null)
-            list = listArg.split("=")[1];
-        player.sendSystemMessage(Component.literal("List: " + list));
-
-
-        if (name == null) {
-            player.sendSystemMessage(Component.literal("Name not specified, please add a name to your position."));
-            return 0;
-        }
-
-        switch (action) {
+        else if (action == "set") {
+            String name;
+            String list;
+            String dim;
+            // Store current positions of player
+            if (PositionData.checkFqn(query)) {
+                name = PositionData.getNameFromFqn(query);
+                list = PositionData.getListFromFqn(query);
+                dim = PositionData.getDimFromFqn(query);
+            }
+            else {
+                String[] parts = query.split(".");
+                switch (parts.length) {
+                    case 3: { // Query e.g. = foo.bar.baz
+                        if (PositionData.checkDim(parts[0])) {
+                            dim = parts[0];
+                        }
+                        else {
+                            player.sendSystemMessage(Component.literal("Dim invalid, please only use 'world','nether' or 'end'."));
+                            return 1;
+                        }
+                        if (PositionData.checkAllowedChars(parts[1])) {
+                            list = parts[1];
+                        }
+                        else {
+                            player.sendSystemMessage(Component.literal("List invalid, please use only a-z,0-9,+-_."));
+                            return 1;
+                        }
+                        if (PositionData.checkAllowedChars(parts[2])) {
+                            name = parts[2];
+                        }
+                        else {
+                            player.sendSystemMessage(Component.literal("Name invalid, please use only a-z,0-9,+-_."));
+                            return 1;
+                        }
+                    }
+                    case 2: { // Query e.g. = bar.baz
+                        if (PositionData.checkAllowedChars(parts[0])) {
+                            list = parts[0];
+                        }
+                        else {
+                            player.sendSystemMessage(Component.literal("List malformed, please use only a-z,0-9,+-_."));
+                            return 1;
+                        }
+                        if (PositionData.checkAllowedChars(parts[1])) {
+                            name = parts[1];
+                        }
+                        else {
+                            player.sendSystemMessage(Component.literal("Name malformed, please use only a-z,0-9,+-_."));
+                            return 1;
+                        }
+                        dim = getPlayerDim(player);
+                    }
+                    case 1: { // Query e.g. = baz
+                        if (PositionData.checkAllowedChars(parts[0])) {
+                            name = parts[0];
+                        }
+                        else {
+                            player.sendSystemMessage(Component.literal("Name malformed, please use only a-z,0-9,+-_."));
+                            return 1;
+                        }
+                        dim = getPlayerDim(player);
+                        list = "default";
+                    }
+                    default: {
+                        player.sendSystemMessage(Component.literal("Name malformed, please use only a-z,0-9,+-_."));
+                        return 1;
+                    }
+                }
+            }
+            BlockPos playerPosBelow = player.blockPosition().below();
+            PositionData pos = new PositionData(name,dim,list, playerPosBelow.getX(), playerPosBelow.getY(), playerPosBelow.getZ());
+            if (pdList.add(pos))
+                player.sendSystemMessage(Component.literal(String.format("Position (X: {}, Y: {}, Z: {}) saved as: {}", pos.getX(), pos.getY(), pos.getZ(), pos.getFQN())));
+            else
+                player.sendSystemMessage(Component.literal(String.format("Position with name {} already saved, please choose different name.", pos.getFQN())));
             
-            case "get":
-                player.sendSystemMessage(Component.literal("Get command executed"));
-                // Add your logic here
-                break;
-            case "set":
-                player.sendSystemMessage(Component.literal("Set command executed"));
-                // Add your logic here
-                break;
-            default:
-                player.sendSystemMessage(Component.literal("Unknown action: " + action));
-                return 0;
+            return 1;
+        }
+        else if (action == "rem") {
+            // TODO
+        }
+        else if (action == "update") {
+            // TODO
         }
 
-        return 1;
+
     }
 
     private static String getPlayerDim(ServerPlayer player) {
