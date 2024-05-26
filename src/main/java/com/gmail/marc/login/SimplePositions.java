@@ -31,7 +31,11 @@ public class SimplePositions
 
         // Register ourselves for server and other game events we are interested in
         MinecraftForge.EVENT_BUS.register(this);
-        MinecraftForge.EVENT_BUS.register(CommandPos.class); // Register other class to event bus
+
+        PositionDataList pdList = new PositionDataList();
+        CommandPos comPos = new CommandPos(pdList);
+        MinecraftForge.EVENT_BUS.register(comPos); // Register CommandPos to event bus
+        // MinecraftForge.EVENT_BUS.register(CommandPos.class); // Register other class to event bus
     }
 
     private void commonSetup(final FMLCommonSetupEvent event)

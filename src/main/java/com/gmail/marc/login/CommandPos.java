@@ -23,11 +23,11 @@ import java.util.stream.Collectors;
 public class CommandPos {
 
     @SubscribeEvent
-    public static void onRegisterCommands(RegisterCommandsEvent event) {
+    public void onRegisterCommands(RegisterCommandsEvent event) {
         register(event.getDispatcher());
     }
 
-    private static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
+    private void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("pos")
             .then(Commands.argument("action", StringArgumentType.word())
                 .suggests((context, builder) -> builder.suggest("get").suggest("set").suggest("rem").suggest("update").suggest("lists").suggest("dims").buildFuture())
@@ -46,7 +46,7 @@ public class CommandPos {
         );
     }
 
-    private static int executeBaseCommand(CommandSourceStack source, String action, String query) {
+    private int executeBaseCommand(CommandSourceStack source, String action, String query) {
         ServerPlayer player;
         try {
             player = source.getPlayerOrException();
