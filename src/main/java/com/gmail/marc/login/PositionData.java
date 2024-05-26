@@ -74,21 +74,22 @@ public class PositionData {
 
     // Util funtions
     public static String getNameFromFqn(String fqn) {
-        String[] parts = fqn.split(".");
+        String[] parts = splitFqn(fqn);
+
         if (parts.length == 3)
             return parts[2];
         else
             return "";
     }
     public static String getListFromFqn(String fqn) {
-        String[] parts = fqn.split(".");
+        String[] parts = splitFqn(fqn);
         if (parts.length == 3)
             return parts[1];
         else
             return "";
     }
     public static String getDimFromFqn(String fqn) {
-        String[] parts = fqn.split(".");
+        String[] parts = splitFqn(fqn);
         if (parts.length == 3)
             return parts[0];
         else
@@ -102,7 +103,7 @@ public class PositionData {
     }
 
     public static boolean checkAllowedChars(String str) {
-        Pattern pattern = Pattern.compile("^[\\w\\d-+_]+$");
+        Pattern pattern = Pattern.compile("^[\\w\\d-_]+$");
         Matcher matcher = pattern.matcher(str);
         return matcher.find();
     }
@@ -110,5 +111,9 @@ public class PositionData {
     public static boolean checkDim(String dim) {
         String[] allowedDims = {"world", "nether", "end"};
         return Arrays.stream(allowedDims).anyMatch("s"::equals);
+    }
+
+    public static String[] splitFqn(String fqn) {
+        return fqn.split("[\\.:]");
     }
 }

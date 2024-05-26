@@ -6,6 +6,7 @@ import java.util.concurrent.CompletableFuture;
 
 public class PositionDataList {
     private List<PositionData> positions;
+    public static final String QUERY_WILDCARD = "+";
 
     public PositionDataList() {
         loadList();
@@ -31,39 +32,51 @@ public class PositionDataList {
             return false;
     }
 
-    public List<PositionData> get(String query) {
-        String[] parts = query.split(".");
-        switch (parts.length) {
-            case 3: {
-                String dim = parts[0];
-                String list = parts[1];
-                String name = parts[2];
-                List<PositionData> filteredList = positions;
-                if (dim != "*")
-                    filteredList = filterByDim(dim, filteredList);
-                if (list != "*")
-                    filteredList = filterByList(list, filteredList);
-                if (name != "*")
-                    filteredList = filterByName(name, filteredList);
-                return filteredList;
-            }
-            case 2: {
-                String list = parts[0];
-                String name = parts[1];
-                List<PositionData> filteredList = positions;
-                if (list != "*")
-                    filteredList = filterByList(list, filteredList);
-                if (name != "*")
-                    filteredList = filterByName(name, filteredList);
-                return filteredList;
-            }
-            default: {
-                String name = parts[0];
-                if (name != "*")
-                    return filterByName(name);
-                return positions;
-            }
-        }
+    // public List<PositionData> get(String query) {
+    //     String[] parts = PositionData.splitFqn(query);
+    //     switch (parts.length) {
+    //         case 3: {
+    //             String dim = parts[0];
+    //             String list = parts[1];
+    //             String name = parts[2];
+    //             List<PositionData> filteredList = positions;
+    //             if (!dim.equals(QUERY_WILDCARD))
+    //                 filteredList = filterByDim(dim, filteredList);
+    //             if (!list.equals(QUERY_WILDCARD))
+    //                 filteredList = filterByList(list, filteredList);
+    //             if (!name.equals(QUERY_WILDCARD))
+    //                 filteredList = filterByName(name, filteredList);
+    //             return filteredList;
+    //         }
+    //         case 2: {
+    //             String list = parts[0];
+    //             String name = parts[1];
+    //             List<PositionData> filteredList = positions;
+    //             if (!list.equals(QUERY_WILDCARD))
+    //                 filteredList = filterByList(list, filteredList);
+    //             if (!name.equals(QUERY_WILDCARD))
+    //                 filteredList = filterByName(name, filteredList);
+    //             return filteredList;
+    //         }
+    //         default: {
+    //             String name = parts[0];
+    //             if (!name.equals(QUERY_WILDCARD))
+    //                 return filterByName(name);
+    //             return positions;
+    //         }
+    //     }
+    // }
+
+    public List<PositionData> get(String dim, String list, String name) {
+        List<PositionData> filteredList = positions;
+        if (!dim.equals(QUERY_WILDCARD))
+            filteredList = filterByDim(dim, filteredList);
+        if (!list.equals(QUERY_WILDCARD))
+            filteredList = filterByList(list, filteredList);
+        if (!name.equals(QUERY_WILDCARD))
+            filteredList = filterByName(name, filteredList);
+
+        return filteredList;
     }
 
     public int remove(String fqn) {
