@@ -22,14 +22,12 @@ public class PositionDataList {
         });
     }
 
-    public boolean add(PositionData position) {
+    public int add(PositionData position) {
         if (checkDuplicateEntry(position)) {
             positions.add(position);
             saveList(); // Write list to disk
-            return true;
         }
-        else
-            return false;
+        return positions.indexOf(position);
     }
 
     // public List<PositionData> get(String query) {
@@ -79,39 +77,35 @@ public class PositionDataList {
         return filteredList;
     }
 
-    public int remove(String fqn) {
-        if (!PositionData.checkAllowedChars(fqn)) return 2; // If fqn is malformed, return 2 (error)
+    // public int remove(String fqn) {
+    //     if (!PositionData.checkAllowedChars(fqn)) return 2; // If fqn is malformed, return 2 (error)
         
-        String dim = PositionData.getDimFromFqn(fqn);
-        String list = PositionData.getListFromFqn(fqn);
-        String name = PositionData.getNameFromFqn(fqn);
-        PositionData position = filterByDimListName(dim, list, name);
-        if (position == null) return 0; // If no position with name found -> return 0
-        // else remove and return 1 -> success
-        positions.remove(position);
-        saveList(); // Write list to disk
-        return 1;
-    }
-
-    // public int remove(String name, String list, String dim) {
-    //     PositionData pos = filterByDimListName(dim, list, name);
-    //     if (pos == null) return 0; // If no position with name found -> return false
-    //     positions.remove(pos); // else remove and return true
+    //     String dim = PositionData.getDimFromFqn(fqn);
+    //     String list = PositionData.getListFromFqn(fqn);
+    //     String name = PositionData.getNameFromFqn(fqn);
+    //     PositionData position = filterByDimListName(dim, list, name);
+    //     if (position == null) return 0; // If no position with name found -> return 0
+    //     // else remove and return 1 -> success
+    //     positions.remove(position);
+    //     saveList(); // Write list to disk
     //     return 1;
     // }
 
-    public int update(String fqn, int x, int y, int z) {
-        if (!PositionData.checkAllowedChars(fqn)) return 2; // If fqn is malformed, return 2 (error)
+    public PositionData remove(String dim, String list, String name) {
+        PositionData pos = filterByDimListName(dim, list, name);
+        if (pos == null) return null; // If no position with name found -> return false
+        positions.remove(pos); // else remove and return true
+        saveList(); // Write list to disk
+        return pos;
+    }
 
-        String dim = PositionData.getDimFromFqn(fqn);
-        String list = PositionData.getListFromFqn(fqn);
-        String name = PositionData.getNameFromFqn(fqn);
+    public PositionData update(String dim, String list, String name, int x, int y, int z) {
         PositionData position = filterByDimListName(dim, list, name);
-        if (position == null) return 0; // If no position with name found -> return 0
-        // else update position with new coordinates and return 1 -> success
+        if (position == null) return null; // If no position with name found -> return null
+        // else update position with new coordinates and return new PositionData -> success
         position.setPos(x, y, z);
         saveList(); // Write list to disk
-        return 1;
+        return position;
     }
 
 

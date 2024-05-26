@@ -58,29 +58,35 @@ public class CommandPos {
             .then(Commands.argument("action", StringArgumentType.word())
                 .suggests((context, builder) -> builder.suggest("get")
                                                 .suggest("set")
-                                                .suggest("settarget")
                                                 .suggest("rem")
                                                 .suggest("update")
                                                 .suggest("lists")
-                                                .suggest("dims")
                                                 .suggest("help")
                                                 .buildFuture())
                 .executes(context -> {
                     String action = StringArgumentType.getString(context, "action");
-                    return executeBaseCommand(context.getSource(), action, null);
+                    return executeBaseCommand(context.getSource(), action, null, null);
                 })
                 .then(Commands.argument("query", StringArgumentType.word())
                     .executes(context -> {
                         String action = StringArgumentType.getString(context, "action");
                         String query = StringArgumentType.getString(context, "query");
-                        return executeBaseCommand(context.getSource(), action, query);
+                        return executeBaseCommand(context.getSource(), action, query, null);
+                    })
+                )
+                .then(Commands.argument("target", StringArgumentType.string())
+                    .executes(context -> {
+                        String action = StringArgumentType.getString(context, "action");
+                        String query = StringArgumentType.getString(context, "query");
+                        String target = StringArgumentType.getString(context, "target");
+                        return executeBaseCommand(context.getSource(), action, query, target);
                     })
                 )
             )
         );
     }
 
-    private int executeBaseCommand(CommandSourceStack source, String action, String query) {
+    private int executeBaseCommand(CommandSourceStack source, String action, String query, String target) {
         ServerPlayer player;
         try {
             player = source.getPlayerOrException();
@@ -89,19 +95,15 @@ public class CommandPos {
             return 0;
         }
 
-        if (action.equals("dims")) {
-            // Send dims to player in chat
-            player.sendSystemMessage(
-                Component.literal("Possible dimensions:\n")
-                .append(" ⊳ ")
-                .append(getColoredString("world\n", COLOR_INDIGO))
-                .append(" ⊳ ")
-                .append(getColoredString("nether\n", COLOR_INDIGO))
-                .append(" ⊳ ")
-                .append(getColoredString("end\n", COLOR_INDIGO))); // Possible dimensions: 'world', 'nether', 'end'.
-            return 1;
-        }
-        else if (action.equals("lists")) {
+        // Normalize arguments
+        if (action != null)
+            action = action.toLowerCase();
+        if (query != null)
+            query = query.toLowerCase();
+        if (target != null)
+            target = target.toLowerCase();
+
+        if (action.equals("lists")) {
             // Send existing lists to player in chat
             List<String> allLists = pdList.getLists();
             // String listNames = allLists.stream().collect(Collectors.joining("\n- "));
@@ -220,7 +222,7 @@ public class CommandPos {
             }
             return 1;
         }
-        else if (action.equals("set") || action.equals("settarget")) {
+        else if (action.equals("set")) {
             String name;
             String list;
             String dim;
@@ -294,62 +296,399 @@ public class CommandPos {
             }
             
             BlockPos blockPos;
-            if (action.equals("settarget")) {
-                // Action is "settarget" -> get position of the block, the player looks at
+            if (target.equals("target") || target.equals("t")) {
+                // Target is set -> get position of the block, the player looks at
                 blockPos = getTargetedBlock(player);
                 if (blockPos == null) {
                     player.sendSystemMessage(
-                        Component.literal("Couldn't determine which block you are looking at, make sure it is ")
+                        getErrorMsgPrefix()
+                        .append("Couldn't determine which block you are looking at, make sure it is ")
                         .append(getColoredString("max. 20 blocks", COLOR_RED))
                         .append(" away.")); // Couldn't determine which block you are targeting, make sure it is max. 20 blocks away.
                     return 0;
                 } 
             }
             else {
-                // Action is "set" -> get position of the block, the player stands in
+                // Target is  not set -> get position of the block, the player stands in
                 blockPos = player.blockPosition();
             }
             PositionData pos = new PositionData(name, dim, list, blockPos.getX(), blockPos.getY(), blockPos.getZ());
-            if (pdList.add(pos)) {
+            int index = pdList.add(pos); // If not added, then -1 else postitive integer
+            if (index > -1) {
                 player.sendSystemMessage(
-                    Component.literal("Position (X: ")
+                    getSuccessMsgPrefix()
+                    .append("Coordinates (X: ")
                     .append(getColoredString(Integer.toString(pos.getX()), COLOR_BLUE))
                     .append(", Y: ")
                     .append(getColoredString(Integer.toString(pos.getY()), COLOR_BLUE))
                     .append(", Z: ")
                     .append(getColoredString(Integer.toString(pos.getZ()), COLOR_BLUE))
-                    .append(") saved as: ")
-                    .append(getColoredString(pos.getFQN(), COLOR_GREEN))); // Position (X: %s, Y: %s, Z: %s) saved as: %s
+                    .append(") saved as ")
+                    .append(getColoredString(pos.getFQN(), COLOR_GREEN))
+                    .append(".")); // Position (X: %s, Y: %s, Z: %s) saved as: %s
             }
             else {
                 player.sendSystemMessage(
-                    Component.literal("Position with name ")
+                    getErrorMsgPrefix()
+                    .append("Position ")
                     .append(getColoredString(pos.getFQN(), COLOR_YELLOW))
                     .append(" already saved, please choose different name.")); // Position with name %s already saved, please choose different name.
             }
             return 1;
         }
         else if (action.equals("rem")) {
-            // TODO
+            // Action is 'rem' -> Remove PositionData from list according to FQN
+            String name;
+            String list;
+            String dim;
+            if (PositionData.checkFqn(query)) {
+                name = PositionData.getNameFromFqn(query);
+                list = PositionData.getListFromFqn(query);
+                dim = PositionData.getDimFromFqn(query);
+                // SimplePositions.LOGGER.debug("fqn: {}, name: {}, list: {}, dim: {}", query, name, list, dim);
+            }
+            else {
+                String[] parts = PositionData.splitFqn(query);
+                if (parts.length == 3) {
+                    // Query e.g. = foo.bar.baz
+                    if (PositionData.checkDim(parts[0])) {
+                        dim = parts[0];
+                    }
+                    else {
+                        player.sendSystemMessage(genDimInvalidMsg());
+                        return 0;
+                    }
+                    if (PositionData.checkAllowedChars(parts[1])) {
+                        list = parts[1];
+                    }
+                    else {
+                        player.sendSystemMessage(genListInvalidMsg());
+                        return 0;
+                    }
+                    if (PositionData.checkAllowedChars(parts[2])) {
+                        name = parts[2];
+                    }
+                    else {
+                        player.sendSystemMessage(genNameInvalidMsg());
+                        return 0;
+                    }
+                }
+                else if (parts.length == 2) {
+                    // Query e.g. = bar.baz
+                    if (PositionData.checkAllowedChars(parts[0])) {
+                        list = parts[0];
+                    }
+                    else {
+                        player.sendSystemMessage(genListInvalidMsg());
+                        return 0;
+                    }
+                    if (PositionData.checkAllowedChars(parts[1])) {
+                        name = parts[1];
+                    }
+                    else {
+                        player.sendSystemMessage(genNameInvalidMsg());
+                        return 0;
+                    }
+                    dim = getPlayerDim(player);
+                }
+                else if (parts.length == 1) {
+                    // Query e.g. = baz
+                    if (PositionData.checkAllowedChars(parts[0])) {
+                        name = parts[0];
+                    }
+                    else {
+                        player.sendSystemMessage(genNameInvalidMsg());
+                        return 0;
+                    }
+                    dim = getPlayerDim(player);
+                    list = "default";
+                }
+                else {
+                    player.sendSystemMessage(genNameInvalidMsg());
+                    return 0;
+                }
+            }
+            PositionData removedPos = pdList.remove(dim, list, name);
+            if (removedPos != null) {
+                player.sendSystemMessage(
+                    getSuccessMsgPrefix()
+                    .append("Position ")
+                    .append(getColoredString(removedPos.getFQN(), COLOR_BLUE))
+                    .append(" removed."));
+            }
+            else {
+                player.sendSystemMessage(
+                    getErrorMsgPrefix()
+                    .append("Position ")
+                    .append(getColoredString(PositionData.genFQN(dim, list, name), COLOR_YELLOW))
+                    .append(" not found, please choose different name.")); // Position with name %s not found please choose different name.
+            }
             return 1;
         }
         else if (action.equals("update")) {
-            // TODO
+            // Action is 'update' -> update old position with new coordinates
+            String name;
+            String list;
+            String dim;
+            if (PositionData.checkFqn(query)) {
+                name = PositionData.getNameFromFqn(query);
+                list = PositionData.getListFromFqn(query);
+                dim = PositionData.getDimFromFqn(query);
+                // SimplePositions.LOGGER.debug("fqn: {}, name: {}, list: {}, dim: {}", query, name, list, dim);
+            }
+            else {
+                String[] parts = PositionData.splitFqn(query);
+                if (parts.length == 3) {
+                    // Query e.g. = foo.bar.baz
+                    if (PositionData.checkDim(parts[0])) {
+                        dim = parts[0];
+                    }
+                    else {
+                        player.sendSystemMessage(genDimInvalidMsg());
+                        return 0;
+                    }
+                    if (PositionData.checkAllowedChars(parts[1])) {
+                        list = parts[1];
+                    }
+                    else {
+                        player.sendSystemMessage(genListInvalidMsg());
+                        return 0;
+                    }
+                    if (PositionData.checkAllowedChars(parts[2])) {
+                        name = parts[2];
+                    }
+                    else {
+                        player.sendSystemMessage(genNameInvalidMsg());
+                        return 0;
+                    }
+                }
+                else if (parts.length == 2) {
+                    // Query e.g. = bar.baz
+                    if (PositionData.checkAllowedChars(parts[0])) {
+                        list = parts[0];
+                    }
+                    else {
+                        player.sendSystemMessage(genListInvalidMsg());
+                        return 0;
+                    }
+                    if (PositionData.checkAllowedChars(parts[1])) {
+                        name = parts[1];
+                    }
+                    else {
+                        player.sendSystemMessage(genNameInvalidMsg());
+                        return 0;
+                    }
+                    dim = getPlayerDim(player);
+                }
+                else if (parts.length == 1) {
+                    // Query e.g. = baz
+                    if (PositionData.checkAllowedChars(parts[0])) {
+                        name = parts[0];
+                    }
+                    else {
+                        player.sendSystemMessage(genNameInvalidMsg());
+                        return 0;
+                    }
+                    dim = getPlayerDim(player);
+                    list = "default";
+                }
+                else {
+                    player.sendSystemMessage(genNameInvalidMsg());
+                    return 0;
+                }
+            }
+            
+            BlockPos blockPos;
+            if (target.equals("target") || target.equals("t")) {
+                // Target is set -> get position of the block, the player looks at
+                blockPos = getTargetedBlock(player);
+                if (blockPos == null) {
+                    player.sendSystemMessage(
+                        getErrorMsgPrefix()
+                        .append("Couldn't determine which block you are looking at, make sure it is ")
+                        .append(getColoredString("max. 20 blocks", COLOR_RED))
+                        .append(" away.")); // Couldn't determine which block you are targeting, make sure it is max. 20 blocks away.
+                    return 0;
+                } 
+            }
+            else {
+                // Target is  not set -> get position of the block, the player stands in
+                blockPos = player.blockPosition();
+            }
+            PositionData updatedPos = pdList.update(dim, list, name, blockPos.getX(), blockPos.getY(), blockPos.getZ()); // If not updated, then null else PositionData
+            if (updatedPos != null) {
+                player.sendSystemMessage(
+                    getSuccessMsgPrefix()
+                    .append("Coordinates (X: ")
+                    .append(getColoredString(Integer.toString(updatedPos.getX()), COLOR_BLUE))
+                    .append(", Y: ")
+                    .append(getColoredString(Integer.toString(updatedPos.getY()), COLOR_BLUE))
+                    .append(", Z: ")
+                    .append(getColoredString(Integer.toString(updatedPos.getZ()), COLOR_BLUE))
+                    .append(") updated for ")
+                    .append(getColoredString(updatedPos.getFQN(), COLOR_GREEN))
+                    .append(".")); // Position (X: %s, Y: %s, Z: %s) updated for: %s
+            }
+            else {
+                player.sendSystemMessage(
+                    getErrorMsgPrefix()
+                    .append("Position '")
+                    .append(getColoredString(PositionData.genFQN(dim, list, name), COLOR_YELLOW))
+                    .append("' not found, please choose different name.")); // Position with name %s not found please choose different name.
+            }
             return 1;
         }
         else if (action.equals("help")) {
-            // TODO
+            if (query == null || query.equals("1")) {
+                MutableComponent msg = Component.literal("SimplePositions HELP (1/3):\n" + // 
+                                                         "Help overview:\n" + //
+                                                         "  1: Help overview (this page)\n" + //
+                                                         "  2: Available commands\n" + //
+                                                         "  3: Additional help and glossary\n" + //
+                                                         "Open pages with ")
+                                        .append(getColoredString("/pos help <page num>", COLOR_YELLOW))
+                                        .append(" .");
+                player.sendSystemMessage(msg); 
+            }
+            else if (query.equals("2")) {
+                // Show general help
+                MutableComponent msg = Component.literal("SimplePositions HELP (2/3):\nAvailable commands:\n");
+                // "set" help
+                msg.append(getColoredString("/pos set", COLOR_YELLOW))
+                    .append(" - Save player position. ")
+                    .append(getColoredString("/pos help set", COLOR_BLUE))
+                    .append(" for details.\n");
+                // "settarget" help
+                msg.append(getColoredString("/pos settarget", COLOR_YELLOW))
+                    .append("  Save player targeted position. ")
+                    .append(getColoredString("/pos help settarget", COLOR_BLUE))
+                    .append(" for details.\n");
+                // "get" help
+                msg.append(getColoredString("/pos get", COLOR_YELLOW))
+                    .append(" - Get saved position. ")
+                    .append(getColoredString("/pos help get", COLOR_BLUE))
+                    .append(" for details.\n");
+                // "rem" help
+                msg.append(getColoredString("/pos rem", COLOR_YELLOW))
+                    .append(" - Remove saved position. ")
+                    .append(getColoredString("/pos help rem", COLOR_BLUE))
+                    .append(" for details.\n");
+                // "update" help
+                msg.append(getColoredString("/pos update", COLOR_YELLOW))
+                    .append(" - Update coordinates of saved position. ")
+                    .append(getColoredString("/pos help update", COLOR_BLUE))
+                    .append(" for details.\n");
+                // "lists" help
+                msg.append(getColoredString("/pos lists", COLOR_YELLOW))
+                    .append(" - Show all created lists. ")
+                    .append(getColoredString("/pos help lists", COLOR_BLUE))
+                    .append(" for details.\n");
+                // "help" help
+                msg.append(getColoredString("/pos help", COLOR_YELLOW))
+                    .append(" - Show help texts.\n");
+
+                player.sendSystemMessage(msg); 
+            }
+            else if (query.equals("3")) {
+                MutableComponent msg = Component.literal("SimplePositions HELP (3/3):\nAdditional help:\n");
+                // "help dim" help
+                msg.append(getColoredString("/pos help dim", COLOR_YELLOW))
+                    .append(" - Explanation of dimensions.\n");
+                // "help list" help
+                msg.append(getColoredString("/pos help list", COLOR_YELLOW))
+                    .append(" - Explanation of lists.\n");
+                // "help name" help
+                msg.append(getColoredString("/pos help name", COLOR_YELLOW))
+                    .append(" - Explanation of names.\n");
+                
+                player.sendSystemMessage(msg); 
+            }
+            else if (query.equals("dim")) {
+                // Send dim explanation to player in chat
+                player.sendSystemMessage(
+                    Component.literal("Saved positions are categorized using dims.\n" + //
+                                      "Each position is assigned to the dimension it was saved in or to.\n" + //
+                                      "Within a dimension, lists must be unique.\n" + //
+                                      "Available dimensions:\n")
+                    .append(" ⊳ ")
+                    .append(getColoredString("world\n", COLOR_INDIGO))
+                    .append(" ⊳ ")
+                    .append(getColoredString("nether\n", COLOR_INDIGO))
+                    .append(" ⊳ ")
+                    .append(getColoredString("end\n", COLOR_INDIGO))); // Possible dimensions: 'world', 'nether', 'end'.
+            }
+            else if (query.equals("list")) {
+                // Send list explanation to player in chat
+                player.sendSystemMessage(
+                    Component.literal("Saved positions are categorized using lists.\n" + //
+                                      "Each position is assigned to a list.\n" + //
+                                      "Within a list, position names must be unique.\n" + //
+                                      "If no list is specified, the position is saved to the 'default' list."));
+            }
+            else if (query.equals("name") || query.equals("fqn")) {
+                // Send list explanation to player in chat
+                player.sendSystemMessage(
+                    Component.literal("Saved positions are identified by their FQN.\n" + // 
+                                      "Each position has a unique combination (FQN) out of their dim, list and name.\n" + //
+                                      "Within a list, position names must be unique.\n" + //
+                                      "FQNs can be set as '<dim>.<list>.<name>'."));
+            }
+            else if (query.equals("set")) {
+                // Display help for "set" command 
+                player.sendSystemMessage(
+                    Component.literal("Help for command 'set':\n" + // 
+                                      "Save your current position\nUsage: ")
+                        .append(getColoredString("/pos set [<dim>.][<list>.]<name>\n", COLOR_BLUE))
+                        .append("Example: ")
+                        .append(getColoredString("/pos set world.camps.hunting\n", COLOR_GREEN))
+                        .append("Attributes:\n" + //
+                                "dim  (optional): Specify dimension. If omitted, current dim of player is used.\n" + //
+                                "list (optional): Specify list. If omitted, 'default' list is used.\n" + //
+                                "name           : Specify name of position."));
+            }
+            else if (query.equals("settarget")) {
+                player.sendSystemMessage(
+                    Component.literal("Help for command 'settarget':\n" + // 
+                                      "Save the position you are looking at\nUsage: See command 'set' ")
+                                      .append(getColoredString("/pos help set", COLOR_YELLOW))
+                                      .append(" ."));
+            }
+            else if (query.equals("get")) {
+                // Display help for "get" command 
+                player.sendSystemMessage(
+                    Component.literal("Help for command 'get':\n" + // 
+                                      "Retrieve a saved position\nUsage: ")
+                        .append(getColoredString("/pos get [<dim>.][<list>.]<name>\n", COLOR_BLUE))
+                        .append("Examples:\n")
+                        .append(getColoredString("/pos get world.camps.hunting\n", COLOR_GREEN))
+                        .append(getColoredString("/pos get nether.+.portal\n", COLOR_GREEN))
+                        .append(getColoredString("/pos get mansion\n", COLOR_GREEN))
+                        .append("Attributes:\n" + //
+                                "dim  (optional): Specify dimension. If omitted, current dim of player is used. Use '+' as a wildcard.\n" + //
+                                "list (optional): Specify list. If omitted, 'default' list is used. Use '+' as a wildcard.\n" + //
+                                "name           : Specify name of position. Use '+' as a wildcard."));
+            }
             return 1;
         }
         else {
             player.sendSystemMessage(
-                Component.literal("Command ")
+                getErrorMsgPrefix()
+                .append("Command ")
                 .append(getColoredString(action, COLOR_YELLOW))
                 .append(" unknown, see ")
                 .append(getColoredString("/pos help", COLOR_BLUE))
                 .append(" for info.")); // Command %s unknown, see /pos help for info.
             return 0;
         }
+    }
+
+    private static MutableComponent getErrorMsgPrefix() {
+        return Component.literal("") // Start with white text
+            .append(getColoredString("✘ ", COLOR_RED));
+    }
+    private static MutableComponent getSuccessMsgPrefix() {
+        return Component.literal("") // Start with white text
+            .append(getColoredString("✔ ", COLOR_GREEN));
     }
 
     private static int getManhattanDistance(BlockPos pos1, BlockPos pos2) {
@@ -408,7 +747,7 @@ public class CommandPos {
     }
 
     private static MutableComponent genArgInvalidMsg(String arg) {
-        return Component.literal("")
+        return getErrorMsgPrefix()
             .append(getColoredString(arg, COLOR_RED))
             .append(" invalid, please use only letters ")
             .append(getColoredString("a-z", COLOR_BLUE))
@@ -420,15 +759,15 @@ public class CommandPos {
     }
 
     private static MutableComponent genDimInvalidMsg() {
-        return Component.literal("")
-        .append(getColoredString("Dim", COLOR_RED))
-        .append(" invalid, please use only ")
-        .append(getColoredString("world", COLOR_INDIGO))
-        .append(", ")
-        .append(getColoredString("nether", COLOR_INDIGO))
-        .append(" or ")
-        .append(getColoredString("end", COLOR_INDIGO))
-        .append("."); // Dim invalid, please use only world, nether or end
+        return getErrorMsgPrefix()
+            .append(getColoredString("Dim", COLOR_RED))
+            .append(" invalid, please use only ")
+            .append(getColoredString("world", COLOR_INDIGO))
+            .append(", ")
+            .append(getColoredString("nether", COLOR_INDIGO))
+            .append(" or ")
+            .append(getColoredString("end", COLOR_INDIGO))
+            .append("."); // Dim invalid, please use only world, nether or end
     }
     
 

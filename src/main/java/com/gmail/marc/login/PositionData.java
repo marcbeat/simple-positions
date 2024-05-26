@@ -35,7 +35,11 @@ public class PositionData {
 
     // Get fully qualified name -> <dim>.<list>.<name>
     public String getFQN() {
-        return this.dim + "." + this.list + "." + this.name;
+        return genFQN(dim, list, name);
+    }
+
+    public static String genFQN(String dim, String list, String name) {
+        return dim + "." + list + "." + name;
     }
 
     public String getDim() {
