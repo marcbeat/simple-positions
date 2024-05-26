@@ -73,14 +73,14 @@ public class CommandPos {
                         String query = StringArgumentType.getString(context, "query");
                         return executeBaseCommand(context.getSource(), action, query, null);
                     })
-                )
-                .then(Commands.argument("target", StringArgumentType.word())
-                    .executes(context -> {
-                        String action = StringArgumentType.getString(context, "action");
-                        String query = StringArgumentType.getString(context, "query");
-                        String target = StringArgumentType.getString(context, "target");
-                        return executeBaseCommand(context.getSource(), action, query, target);
-                    })
+                    .then(Commands.argument("target", StringArgumentType.word())
+                        .executes(context -> {
+                            String action = StringArgumentType.getString(context, "action");
+                            String query = StringArgumentType.getString(context, "query");
+                            String target = StringArgumentType.getString(context, "target");
+                            return executeBaseCommand(context.getSource(), action, query, target);
+                        })
+                    )
                 )
             )
         );
@@ -102,6 +102,7 @@ public class CommandPos {
             query = query.toLowerCase();
         if (target != null)
             target = target.toLowerCase();
+        else target = "player"; // Set target to player (instead of "target")
 
         if (action.equals("lists")) {
             // Send existing lists to player in chat
@@ -296,7 +297,7 @@ public class CommandPos {
             }
             
             BlockPos blockPos;
-            if (target.equals("target") || target.equals("t")) {
+            if (target != null && (target.equals("target") || target.equals("t"))) {
                 // Target is set -> get position of the block, the player looks at
                 blockPos = getTargetedBlock(player);
                 if (blockPos == null) {
@@ -499,7 +500,7 @@ public class CommandPos {
             }
             
             BlockPos blockPos;
-            if (target.equals("target") || target.equals("t")) {
+            if (target != null && (target.equals("target") || target.equals("t"))) {
                 // Target is set -> get position of the block, the player looks at
                 blockPos = getTargetedBlock(player);
                 if (blockPos == null) {
