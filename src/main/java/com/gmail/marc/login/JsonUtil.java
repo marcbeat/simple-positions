@@ -12,23 +12,26 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Collections;
 
 public class JsonUtil {
-    private static final String JSON_FILE_NAME = "positions.json";
+    private static final String JSON_FILE_NAME = SimplePositions.MODID + ".json";
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Type POSITION_LIST_TYPE = new TypeToken<List<PositionData>>() {}.getType();
 
     public static List<PositionData> readPositionsFromJson() {
         File jsonFile = getJsonFile();
         String filePath = jsonFile.getAbsolutePath();
+        SimplePositions.LOGGER.debug("Loading data file from path: " + filePath);
+
         if (!jsonFile.exists()) {
             // Json file doesn't exist yes -> create it
             List<PositionData> emptyList = Collections.<PositionData> emptyList();
             writePositionsToJson(emptyList);
-            SimplePositions.LOGGER.debug("SimplePositions position data file doesn't exist: Creating new.");
+            SimplePositions.LOGGER.debug("Position data file doesn't exist: Creating new.");
             return emptyList;
         }
         try (FileReader reader = new FileReader(filePath)) {
@@ -44,6 +47,7 @@ public class JsonUtil {
 
     public static void writePositionsToJson(List<PositionData> positions) {
         String filePath = getJsonFile().getAbsolutePath();
+        SimplePositions.LOGGER.debug("Saving data file to path: " + filePath);
         try (FileWriter writer = new FileWriter(filePath)) {
             GSON.toJson(positions, writer);
             SimplePositions.LOGGER.debug("Saved positions to JSON.");
@@ -54,8 +58,20 @@ public class JsonUtil {
     }
 
     public static File getJsonFile() {
-        Path jsonPath = FMLPaths.CONFIGDIR.get();
-        File jsonFile = new File(jsonPath.toFile(), JSON_FILE_NAME);
+        Path configDir = FMLPaths.CONFIGDIR.get();
+        // Path modConfigDir = configDir.resolve(SimplePositions.MODID);
+        // try {
+        //     // Create the subdirectory if it doesn't exist
+        //     if (Files.notExists(modConfigDir)) {
+        //         Files.createDirectories(modConfigDir);
+        //         SimplePositions.LOGGER.debug("Created config directory '{}'", modConfigDir.toAbsolutePath());
+        //     } else {
+        //         SimplePositions.LOGGER.debug("Config directory '{}' already exists.", modConfigDir.toAbsolutePath());
+        //     }
+        // } catch (IOException e) {
+        //     SimplePositions.LOGGER.error("Couldn't create or find config directory:\n{}", e.getMessage());
+        // }
+        File jsonFile = new File(configDir.toFile(), JSON_FILE_NAME);
         return jsonFile;
     }
 }
