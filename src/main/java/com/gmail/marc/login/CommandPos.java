@@ -195,7 +195,9 @@ public class CommandPos {
             }
             else if (savedPositions.size() == 1) {
                 PositionData pos = savedPositions.get(0);
-                MutableComponent msg = Component.literal("X: ")
+                MutableComponent msg = Component.literal("")
+                    .append(getColoredString(pos.getName(), COLOR_PINK))
+                    .append(" X: ")
                     .append(getColoredString(Integer.toString(pos.getX()), COLOR_BLUE))
                     .append(", Y: ")
                     .append(getColoredString(Integer.toString(pos.getY()), COLOR_BLUE))
