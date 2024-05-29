@@ -59,6 +59,7 @@ public class CommandPos {
                                                 .suggest("set")
                                                 .suggest("rem")
                                                 .suggest("update")
+                                                .suggest("near")
                                                 .suggest("lists")
                                                 .suggest("help")
                                                 .buildFuture())
@@ -67,13 +68,42 @@ public class CommandPos {
                     return executeBaseCommand(context.getSource(), action, null, null);
                 })
                 .then(Commands.argument("query", StringArgumentType.string())
-                .then(Commands.argument("query", StringArgumentType.word())
+                    .suggests((context, builder) -> {
+                        String action = StringArgumentType.getString(context, "action");
+                        if (action.equals("get") || action.equals("rem") || action.equals("update")) {
+                            for (PositionData pos : pdList.get("+","+","+")) {
+                                builder.suggest(pos.getFQN());
+                            }
+                            // List<String> additionalSuggestions = Arrays.asList(
+                            //     PositionDataList.QUERY_WILDCARD,
+                            //     String.format("%s.%s", PositionDataList.QUERY_WILDCARD, PositionDataList.QUERY_WILDCARD),
+                            //     String.format("%s.%s.%s", PositionDataList.QUERY_WILDCARD, PositionDataList.QUERY_WILDCARD, PositionDataList.QUERY_WILDCARD));
+                            // for (String dim : PositionData.ALLOWED_DIMS) {
+                            //     additionalSuggestions.add(String.format)
+                            // }
+                        }
+                        else if (action.equals("help")) {
+                            String[] helpTopics = {"1", "2", "3", "get", "set", "rem", "update", "near", "list", "dim", "name"};
+                            for (String topic : helpTopics) {
+                                builder.suggest(topic);
+                            }
+                        }
+                        return builder.buildFuture();
+                    })
                     .executes(context -> {
                         String action = StringArgumentType.getString(context, "action");
                         String query = StringArgumentType.getString(context, "query");
                         return executeBaseCommand(context.getSource(), action, query, null);
                     })
                     .then(Commands.argument("target", StringArgumentType.word())
+                        .suggests((context, builder) -> {
+                            String action = StringArgumentType.getString(context, "action");
+                            // String query = StringArgumentType.getString(context, "query");
+                            if (action.equals("set") || action.equals("update")) {
+                                    builder.suggest("target", Component.literal("(Opt.) Use targeted block instead."));
+                            }
+                            return builder.buildFuture();
+                        })
                         .executes(context -> {
                             String action = StringArgumentType.getString(context, "action");
                             String query = StringArgumentType.getString(context, "query");
@@ -610,18 +640,7 @@ public class CommandPos {
             return 1;
         }
         else if (action.equals("help")) {
-            if (query == null || query.equals("1")) {
-                MutableComponent msg = Component.literal("SimplePositions HELP (1/3):\n" + // 
-                                                         "Help overview:\n" + //
-                                                         "  1: Help overview (this page)\n" + //
-                                                         "  2: Available commands\n" + //
-                                                         "  3: Additional help and glossary\n" + //
-                                                         "Open pages with ")
-                                        .append(getColoredString("/pos help <page num>", COLOR_YELLOW))
-                                        .append(" .");
-                player.sendSystemMessage(msg); 
-            }
-            else if (query.equals("2")) {
+            if (query.equals("2")) {
                 // Show general help
                 MutableComponent msg = Component.literal("SimplePositions HELP (2/3):\nAvailable commands:\n");
                 // "set" help
@@ -743,6 +762,17 @@ public class CommandPos {
                                 "dim  (optional): Specify dimension. If omitted, current dim of player is used. Use '+' as a wildcard.\n" + //
                                 "list (optional): Specify list. If omitted, 'default' list is used. Use '+' as a wildcard.\n" + //
                                 "name           : Specify name of position. Use '+' as a wildcard."));
+            }
+            else {
+                MutableComponent msg = Component.literal("SimplePositions HELP (1/3):\n" + // 
+                                                         "Help overview:\n" + //
+                                                         "  1: Help overview (this page)\n" + //
+                                                         "  2: Available commands\n" + //
+                                                         "  3: Additional help and glossary\n" + //
+                                                         "Open pages with ")
+                                        .append(getColoredString("/pos help <page num>", COLOR_YELLOW))
+                                        .append(" .");
+                player.sendSystemMessage(msg); 
             }
             return 1;
         }

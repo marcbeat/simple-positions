@@ -19,7 +19,7 @@ public class PositionData {
     private int z;
 
     public static final char NAME_INC_WILDCARD = '%';
-    private static final Set<String> ALLOWED_DIMS = new HashSet<>(Arrays.asList("world", "nether", "end"));
+    public static final Set<String> ALLOWED_DIMS = new HashSet<>(Arrays.asList("world", "nether", "end"));
 
     public PositionData(String name, String dim, String list, int x, int y, int z) {
         this.id = UUID.randomUUID();
