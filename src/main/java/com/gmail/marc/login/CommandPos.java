@@ -210,7 +210,7 @@ public class CommandPos {
                     .append(
                         getColoredString(
                             Integer.toString(
-                                getManhattanDistance(player.blockPosition(), new BlockPos(pos.getX(), pos.getY(), pos.getZ()))
+                                getManhattanDistance(player.blockPosition(), pos.getBlockPos())
                             ) + " blocks", COLOR_CYAN));
                 }
                 player.sendSystemMessage(msg);
