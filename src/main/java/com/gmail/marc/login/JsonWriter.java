@@ -29,7 +29,7 @@ public class JsonWriter {
     public List<PositionData> readPositionsFromJson() {
         File jsonFile = getJsonFile();
         String filePath = jsonFile.getAbsolutePath();
-        SimplePositions.LOGGER.debug("Loading data file from path: " + filePath);
+        // SimplePositions.LOGGER.debug("Loading data file from path: " + filePath);
 
         if (!jsonFile.exists()) {
             // Json file doesn't exist yes -> create it
@@ -51,7 +51,7 @@ public class JsonWriter {
 
     public void writePositionsToJson(List<PositionData> positions) {
         String filePath = getJsonFile().getAbsolutePath();
-        SimplePositions.LOGGER.debug("Saving data file to path: " + filePath);
+        // SimplePositions.LOGGER.debug("Saving data file to path: " + filePath);
         try (FileWriter writer = new FileWriter(filePath)) {
             GSON.toJson(positions, writer);
             SimplePositions.LOGGER.debug("Saved positions to JSON.");
