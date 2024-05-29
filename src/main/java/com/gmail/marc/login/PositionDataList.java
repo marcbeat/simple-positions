@@ -3,12 +3,15 @@ package com.gmail.marc.login;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.OptionalInt;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
 import net.minecraft.core.BlockPos;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class PositionDataList {
     private List<PositionData> positions;
@@ -38,41 +41,6 @@ public class PositionDataList {
         return positions.indexOf(position);
     }
 
-    // public List<PositionData> get(String query) {
-    //     String[] parts = PositionData.splitFqn(query);
-    //     switch (parts.length) {
-    //         case 3: {
-    //             String dim = parts[0];
-    //             String list = parts[1];
-    //             String name = parts[2];
-    //             List<PositionData> filteredList = positions;
-    //             if (!dim.equals(QUERY_WILDCARD))
-    //                 filteredList = filterByDim(dim, filteredList);
-    //             if (!list.equals(QUERY_WILDCARD))
-    //                 filteredList = filterByList(list, filteredList);
-    //             if (!name.equals(QUERY_WILDCARD))
-    //                 filteredList = filterByName(name, filteredList);
-    //             return filteredList;
-    //         }
-    //         case 2: {
-    //             String list = parts[0];
-    //             String name = parts[1];
-    //             List<PositionData> filteredList = positions;
-    //             if (!list.equals(QUERY_WILDCARD))
-    //                 filteredList = filterByList(list, filteredList);
-    //             if (!name.equals(QUERY_WILDCARD))
-    //                 filteredList = filterByName(name, filteredList);
-    //             return filteredList;
-    //         }
-    //         default: {
-    //             String name = parts[0];
-    //             if (!name.equals(QUERY_WILDCARD))
-    //                 return filterByName(name);
-    //             return positions;
-    //         }
-    //     }
-    // }
-
     public List<PositionData> get(String dim, String list, String name) {
         List<PositionData> filteredList = positions;
         if (!dim.equals(QUERY_WILDCARD))
@@ -84,20 +52,6 @@ public class PositionDataList {
 
         return filteredList;
     }
-
-    // public int remove(String fqn) {
-    //     if (!PositionData.checkAllowedChars(fqn)) return 2; // If fqn is malformed, return 2 (error)
-        
-    //     String dim = PositionData.getDimFromFqn(fqn);
-    //     String list = PositionData.getListFromFqn(fqn);
-    //     String name = PositionData.getNameFromFqn(fqn);
-    //     PositionData position = filterByDimListName(dim, list, name);
-    //     if (position == null) return 0; // If no position with name found -> return 0
-    //     // else remove and return 1 -> success
-    //     positions.remove(position);
-    //     saveList(); // Write list to disk
-    //     return 1;
-    // }
 
     public PositionData remove(String dim, String list, String name) {
         PositionData pos = filterByDimListName(dim, list, name);
@@ -131,13 +85,13 @@ public class PositionDataList {
     }
 
     
-    private List<PositionData> filterByName(String name) {
-        List<PositionData> filteredList = positions.stream()
-        .filter(pos -> pos.getName().equals(name))
-        .collect(Collectors.toList());
+    // private List<PositionData> filterByName(String name) {
+    //     List<PositionData> filteredList = positions.stream()
+    //     .filter(pos -> pos.getName().equals(name))
+    //     .collect(Collectors.toList());
 
-        return filteredList;
-    }
+    //     return filteredList;
+    // }
 
     private List<PositionData> filterByName(String name, List<PositionData> customList) {
         List<PositionData> filteredList = customList.stream()
@@ -147,13 +101,32 @@ public class PositionDataList {
         return filteredList;
     }
 
-    private List<PositionData> filterByDim(String dim) {
-        List<PositionData> filteredList = positions.stream()
-        .filter(pos -> pos.getDim().equals(dim))
-        .collect(Collectors.toList());
+    public int getHighestNameIncrement(String dim, String list, String name) {
+        // Name must have increment wildcard
+        if (!PositionData.hasNameIncrementWildcard(name)) return -1; // Name does not have increment wildcard --> return -1
+        String regex = name.replace(Character.toString(PositionData.NAME_INC_WILDCARD), "(\\d+)");
+        // SimplePositions.LOGGER.debug("Looking for FQN (regex): {}", String.format("%s.%s.%s", dim,list,regex));
+        Pattern pattern = Pattern.compile(regex);
+        OptionalInt max = positions.stream()
+        .filter(pos -> pos.getList().equals(list) && // Filter by given list and dim
+                       pos.getDim().equals(dim))
+        .map(PositionData::getName) // Extract the names
+        .map(pattern::matcher) // Create a matcher for each name
+        .filter(Matcher::matches) // Filter names that match the regex
+        .mapToInt(matcher -> Integer.parseInt(matcher.group(1))) // Extract and convert the number to int
+        .max(); // Find the maximum number
 
-        return filteredList;
+        int currentMax = max.orElse(-1);
+        return currentMax + 1;
     }
+
+    // private List<PositionData> filterByDim(String dim) {
+    //     List<PositionData> filteredList = positions.stream()
+    //     .filter(pos -> pos.getDim().equals(dim))
+    //     .collect(Collectors.toList());
+
+    //     return filteredList;
+    // }
 
     private List<PositionData> filterByDim(String dim, List<PositionData> customList) {
         List<PositionData> filteredList = customList.stream()
@@ -163,13 +136,13 @@ public class PositionDataList {
         return filteredList;
     }
 
-    private List<PositionData> filterByList(String list) {
-        List<PositionData> filteredList = positions.stream()
-        .filter(pos -> pos.getList().equals(list))
-        .collect(Collectors.toList());
+    // private List<PositionData> filterByList(String list) {
+    //     List<PositionData> filteredList = positions.stream()
+    //     .filter(pos -> pos.getList().equals(list))
+    //     .collect(Collectors.toList());
 
-        return filteredList;
-    }
+    //     return filteredList;
+    // }
 
     private List<PositionData> filterByList(String list, List<PositionData> customList) {
         List<PositionData> filteredList = customList.stream()

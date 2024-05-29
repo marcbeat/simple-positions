@@ -41,8 +41,7 @@ public class CommandPos {
     private static final TextColor COLOR_INDIGO = TextColor.fromRgb(0xA48CFF);
     private static final TextColor COLOR_TEAL = TextColor.fromRgb(0x20C997);
     private static final TextColor COLOR_PINK = TextColor.fromRgb(0xD63384);
-    private static final TextColor COLOR_CYAN = TextColor.fromRgb(0x0DCAF0);
-    
+    private static final TextColor COLOR_CYAN = TextColor.fromRgb(0x0DCAF0);    
 
     public CommandPos(PositionDataList pdList) {
         this.pdList = pdList;
@@ -67,6 +66,7 @@ public class CommandPos {
                     String action = StringArgumentType.getString(context, "action");
                     return executeBaseCommand(context.getSource(), action, null, null);
                 })
+                .then(Commands.argument("query", StringArgumentType.string())
                 .then(Commands.argument("query", StringArgumentType.word())
                     .executes(context -> {
                         String action = StringArgumentType.getString(context, "action");
@@ -189,9 +189,9 @@ public class CommandPos {
             List<PositionData> savedPositions = pdList.get(dim, list, name);
             if (savedPositions.size() < 1) {
                 player.sendSystemMessage(
-                    Component.literal("No position found matching the query '")
-                    .append(getColoredString(query, COLOR_YELLOW))
-                    .append("'.")); // No position found matching the query '%s'.
+                    Component.literal("No position found matching ")
+                    .append(getColoredString(String.format("%s.%s.%s", dim, list, name), COLOR_YELLOW))
+                    .append(".")); // No position found matching the query '%s'.
             }
             else if (savedPositions.size() == 1) {
                 PositionData pos = savedPositions.get(0);
@@ -206,12 +206,13 @@ public class CommandPos {
                     .append(", Dim: ")
                     .append(getColoredString(pos.getDim(), COLOR_INDIGO));
                 if (dim.equals(getPlayerDim(player))) {// Add distance if in same dim
-                    msg.append(", Distance: ")
+                    msg.append(", ")
                     .append(
                         getColoredString(
                             Integer.toString(
                                 getManhattanDistance(player.blockPosition(), pos.getBlockPos())
-                            ) + " blocks", COLOR_CYAN));
+                            ) + " blocks", COLOR_CYAN))
+                    .append(" away");
                 }
                 player.sendSystemMessage(msg);
             }
@@ -315,7 +316,7 @@ public class CommandPos {
                         player.sendSystemMessage(genListInvalidMsg());
                         return 0;
                     }
-                    if (PositionData.checkAllowedChars(parts[2])) {
+                    if (PositionData.checkAllowedCharsName(parts[2])) {
                         name = parts[2];
                     }
                     else {
@@ -332,7 +333,7 @@ public class CommandPos {
                         player.sendSystemMessage(genListInvalidMsg());
                         return 0;
                     }
-                    if (PositionData.checkAllowedChars(parts[1])) {
+                    if (PositionData.checkAllowedCharsName(parts[1])) {
                         name = parts[1];
                     }
                     else {
@@ -343,7 +344,7 @@ public class CommandPos {
                 }
                 else if (parts.length == 1) {
                     // Query e.g. = baz
-                    if (PositionData.checkAllowedChars(parts[0])) {
+                    if (PositionData.checkAllowedCharsName(parts[0])) {
                         name = parts[0];
                     }
                     else {
@@ -357,6 +358,12 @@ public class CommandPos {
                     player.sendSystemMessage(genNameInvalidMsg());
                     return 0;
                 }
+            }
+
+            if (PositionData.hasNameIncrementWildcard(name)) {
+                // Name contains the wildcard % --> look for all occurences with that name and numbers replacing the wildcard
+                int nextInc = pdList.getHighestNameIncrement(dim, list, name);
+                name = name.replace(Character.toString(PositionData.NAME_INC_WILDCARD), Integer.toString(nextInc));
             }
             
             BlockPos blockPos;
@@ -702,20 +709,25 @@ public class CommandPos {
                 player.sendSystemMessage(
                     Component.literal("Help for command 'set':\n" + // 
                                       "Save your current position\nUsage: ")
-                        .append(getColoredString("/pos set [<dim>.][<list>.]<name>\n", COLOR_BLUE))
-                        .append("Example: ")
+                        .append(getColoredString("/pos set [<dim>.][<list>.]<name> [target|t]\n", COLOR_BLUE))
+                        .append("Example 1: ")
                         .append(getColoredString("/pos set world.camps.hunting\n", COLOR_GREEN))
+                        .append("Example 2: ")
+                        .append(getColoredString("/pos set \"spawner.zombie-%\"\n", COLOR_GREEN))
                         .append("Attributes:\n" + //
-                                "dim  (optional): Specify dimension. If omitted, current dim of player is used.\n" + //
-                                "list (optional): Specify list. If omitted, 'default' list is used.\n" + //
-                                "name           : Specify name of position."));
-            }
-            else if (query.equals("settarget")) {
-                player.sendSystemMessage(
-                    Component.literal("Help for command 'settarget':\n" + // 
-                                      "Save the position you are looking at\nUsage: See command 'set' ")
-                                      .append(getColoredString("/pos help set", COLOR_YELLOW))
-                                      .append(" ."));
+                                "dim    (opt.) : Specify dimension. If omitted, current dim of player is used.\n" + //
+                                "list   (opt.) : Specify list. If omitted, ")
+                                
+                        .append(getColoredString("default", COLOR_TEAL))
+                        .append(" list is used.\n" + //
+                                "name          : Specify name of position. A ")
+                        .append(getColoredString("%", COLOR_YELLOW))
+                        .append(" at the end automatically counts up.\n" + //
+                                "target (opt.) : A ")
+                        .append(getColoredString("t", COLOR_YELLOW))
+                        .append(" or ")
+                        .append(getColoredString("target", COLOR_YELLOW))
+                        .append(" at the end saves the pos you're looking at."));
             }
             else if (query.equals("get")) {
                 // Display help for "get" command 
