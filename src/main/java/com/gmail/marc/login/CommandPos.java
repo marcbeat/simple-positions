@@ -225,6 +225,67 @@ public class CommandPos {
             }
             return 1;
         }
+        else if (action.equals("near")) {
+            // Send positions in chat that are near the player (sqrtDist)
+            BlockPos playerBlockPos = player.blockPosition();
+            
+            double radius = -1;
+            if (query != null && query.length() > 0) {
+                double rawInputRadius;
+                try {
+                    rawInputRadius = Double.parseDouble(query); // Check if query is type Double
+                }
+                catch (NumberFormatException e) {
+                    player.sendSystemMessage(
+                        getErrorMsgPrefix()
+                        .append("That does not look like a radius! Please use a number.")
+                    );
+                    return 0;
+                }
+                if (rawInputRadius < 0) { // Check if query is a positive float or 0
+                    player.sendSystemMessage(
+                        getErrorMsgPrefix()
+                        .append("Radius needs to be >= 0!")
+                    );
+                    return 0;
+                }
+                radius = rawInputRadius;
+            }
+            String dim = getPlayerDim(player);
+            List<PositionData> savedPositions = pdList.getInSphere(dim, playerBlockPos, radius);
+
+            if (savedPositions.size() < 1) {
+                player.sendSystemMessage(
+                    Component.literal("No saved position found near you."));
+            }
+            else if (savedPositions.size() == 1) {
+                PositionData pos = savedPositions.get(0);
+                player.sendSystemMessage(
+                    Component.literal("")
+                    .append(getColoredString(pos.getFQN(), COLOR_PINK))
+                    .append(" X: ")
+                    .append(getColoredString(Integer.toString(pos.getX()), COLOR_BLUE))
+                    .append(", Y: ")
+                    .append(getColoredString(Integer.toString(pos.getY()), COLOR_BLUE))
+                    .append(", Z: ")
+                    .append(getColoredString(Integer.toString(pos.getZ()), COLOR_BLUE))
+                    .append(", ")
+                    .append(
+                        getColoredString(
+                            Integer.toString(
+                                getManhattanDistance(player.blockPosition(), pos.getBlockPos())
+                            ) + " blocks", COLOR_CYAN))
+                    .append(" away."));
+            }
+            else {
+                MutableComponent msg = Component.literal("Positions found (")
+                    .append(getColoredString(Integer.toString(savedPositions.size()), COLOR_BLUE))
+                    .append(getColoredString("):\n", COLOR_WHITE))
+                    .append(genPositionMsg(savedPositions));
+                player.sendSystemMessage(msg);
+            }
+            return 1;
+        }
         else if (action.equals("set")) {
             String name;
             String list;

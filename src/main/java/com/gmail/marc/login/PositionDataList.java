@@ -1,7 +1,13 @@
 package com.gmail.marc.login;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
+
+import net.minecraft.core.BlockPos;
+
 import java.util.concurrent.CompletableFuture;
 
 public class PositionDataList {
@@ -182,5 +188,39 @@ public class PositionDataList {
 
         if (filteredList.size() == 1) return filteredList.get(0);
         else return null;
+    }
+
+    public List<PositionData> getInSphere(String dim, BlockPos playerPos, double radius) {
+        SimplePositions.LOGGER.debug("Radius is <= {}", radius); // DEBUG
+        List<PositionData> filteredList = new ArrayList<>();
+        if (radius < 0) {
+            // Get nearest position only (equal distance of subsequent match will not override first)
+            Optional<PositionData> closestPosition = positions.stream()
+            .filter(pos -> pos.getDim().equals(dim))
+            .min(Comparator.comparingDouble(pos -> getSqrDistance(playerPos, pos.getBlockPos())));
+            
+            // If the list is empty, closestPosition will be empty, so handle that case
+            if (closestPosition.isPresent()) {
+                filteredList.add(closestPosition.get());
+                SimplePositions.LOGGER.debug("Closest position {} units away", getSqrDistance(closestPosition.get().getBlockPos(), playerPos));
+            }
+        }
+        else {
+            // Get all positions within a sphere with the given radius centered on the player
+            filteredList = positions.stream()
+            .filter(pos -> {
+                SimplePositions.LOGGER.debug("Comparing {} : Dist: {} units", pos.getFQN(), getSqrDistance(pos.getBlockPos(), playerPos));
+
+                return pos.getDim().equals(dim) &&
+                           getSqrDistance(playerPos, pos.getBlockPos()) <= radius;
+            })
+            .collect(Collectors.toList());
+        }
+        
+        return filteredList;
+    }
+    // calculate the distance between two BlockPos
+    private static double getSqrDistance(BlockPos pos1, BlockPos pos2) {
+        return Math.sqrt(pos1.distSqr(pos2));
     }
 }

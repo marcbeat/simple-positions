@@ -7,6 +7,8 @@ import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import net.minecraft.core.BlockPos;
+
 public class PositionData {
     private UUID id;
     private String name;
@@ -65,11 +67,12 @@ public class PositionData {
     }
     public int getY() {
         return y;
-
     }
     public int getZ() {
         return z;
-
+    }
+    public BlockPos getBlockPos() {
+        return new BlockPos(x,y,z);
     }
 
     public void setPos(int x, int y, int z) {
