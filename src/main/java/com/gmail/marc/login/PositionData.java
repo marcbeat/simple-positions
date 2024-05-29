@@ -16,6 +16,8 @@ public class PositionData {
     private int y;
     private int z;
 
+    public static final char NAME_INC_WILDCARD = '%';
+
     public PositionData(String name, String dim, String list, int x, int y, int z) {
         this.id = UUID.randomUUID();
         this.name = name;
@@ -103,13 +105,18 @@ public class PositionData {
     }
 
     public static boolean checkFqn(String fqn) {
-        Pattern pattern = Pattern.compile("^\\b(world|nether|end)\\b\\.[\\w\\d-_]+\\.[\\w\\d-_]+$"); // Needs to be 3 combinations of letters or digits or any of (+-_) divided by "."
+        Pattern pattern = Pattern.compile("^\\b(world|nether|end)\\b\\.[\\w\\d-_]+\\.[\\w\\d-_]+" + NAME_INC_WILDCARD + "?$"); // Needs to be 3 combinations of letters or digits or any of (+-_) divided by ".", the last section may have a % character
         Matcher matcher = pattern.matcher(fqn);
         return matcher.find();
     }
 
     public static boolean checkAllowedChars(String str) {
         Pattern pattern = Pattern.compile("^[\\w\\d-_]+$");
+        Matcher matcher = pattern.matcher(str);
+        return matcher.find();
+    }
+    public static boolean checkAllowedCharsName(String str) {
+        Pattern pattern = Pattern.compile("^[\\w\\d-_]+" + NAME_INC_WILDCARD + "?$");
         Matcher matcher = pattern.matcher(str);
         return matcher.find();
     }
@@ -121,5 +128,9 @@ public class PositionData {
 
     public static String[] splitFqn(String fqn) {
         return fqn.split("\\.");
+    }
+
+    public static boolean hasNameIncrementWildcard(String name) {
+        return name.charAt(name.length()-1) == NAME_INC_WILDCARD;
     }
 }

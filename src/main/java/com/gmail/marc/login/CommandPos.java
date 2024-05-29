@@ -255,7 +255,7 @@ public class CommandPos {
                         player.sendSystemMessage(genListInvalidMsg());
                         return 0;
                     }
-                    if (PositionData.checkAllowedChars(parts[2])) {
+                    if (PositionData.checkAllowedCharsName(parts[2])) {
                         name = parts[2];
                     }
                     else {
@@ -272,7 +272,7 @@ public class CommandPos {
                         player.sendSystemMessage(genListInvalidMsg());
                         return 0;
                     }
-                    if (PositionData.checkAllowedChars(parts[1])) {
+                    if (PositionData.checkAllowedCharsName(parts[1])) {
                         name = parts[1];
                     }
                     else {
@@ -283,7 +283,7 @@ public class CommandPos {
                 }
                 else if (parts.length == 1) {
                     // Query e.g. = baz
-                    if (PositionData.checkAllowedChars(parts[0])) {
+                    if (PositionData.checkAllowedCharsName(parts[0])) {
                         name = parts[0];
                     }
                     else {
@@ -297,6 +297,12 @@ public class CommandPos {
                     player.sendSystemMessage(genNameInvalidMsg());
                     return 0;
                 }
+            }
+
+            if (PositionData.hasNameIncrementWildcard(name)) {
+                // Name contains the wildcard % --> look for all occurences with that name and numbers replacing the wildcard
+                int nextInc = pdList.getHighestNameIncrement(dim, list, name);
+                name = name.replace(Character.toString(PositionData.NAME_INC_WILDCARD), Integer.toString(nextInc));
             }
             
             BlockPos blockPos;

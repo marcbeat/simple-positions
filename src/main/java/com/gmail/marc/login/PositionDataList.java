@@ -1,8 +1,11 @@
 package com.gmail.marc.login;
 
 import java.util.List;
+import java.util.OptionalInt;
 import java.util.stream.Collectors;
 import java.util.concurrent.CompletableFuture;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class PositionDataList {
     private List<PositionData> positions;
@@ -141,10 +144,24 @@ public class PositionDataList {
         return filteredList;
     }
 
-    private List<PositionData> filterByDim(String dim) {
-        List<PositionData> filteredList = positions.stream()
-        .filter(pos -> pos.getDim().equals(dim))
-        .collect(Collectors.toList());
+    public int getHighestNameIncrement(String dim, String list, String name) {
+        // Name must have increment wildcard
+        if (!PositionData.hasNameIncrementWildcard(name)) return -1; // Name does not have increment wildcard --> return -1
+        String regex = name.replace(Character.toString(PositionData.NAME_INC_WILDCARD), "(\\d+)");
+        // SimplePositions.LOGGER.debug("Looking for FQN (regex): {}", String.format("%s.%s.%s", dim,list,regex));
+        Pattern pattern = Pattern.compile(regex);
+        OptionalInt max = positions.stream()
+        .filter(pos -> pos.getList().equals(list) && // Filter by given list and dim
+                       pos.getDim().equals(dim))
+        .map(PositionData::getName) // Extract the names
+        .map(pattern::matcher) // Create a matcher for each name
+        .filter(Matcher::matches) // Filter names that match the regex
+        .mapToInt(matcher -> Integer.parseInt(matcher.group(1))) // Extract and convert the number to int
+        .max(); // Find the maximum number
+
+        int currentMax = max.orElse(-1);
+        return currentMax + 1;
+    }
 
         return filteredList;
     }
