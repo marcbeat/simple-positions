@@ -648,11 +648,6 @@ public class CommandPos {
                     .append(" - Save player position. ")
                     .append(getColoredString("/pos help set", COLOR_BLUE))
                     .append(" for details.\n");
-                // "settarget" help
-                msg.append(getColoredString("/pos settarget", COLOR_YELLOW))
-                    .append("  Save player targeted position. ")
-                    .append(getColoredString("/pos help settarget", COLOR_BLUE))
-                    .append(" for details.\n");
                 // "get" help
                 msg.append(getColoredString("/pos get", COLOR_YELLOW))
                     .append(" - Get saved position. ")
@@ -762,6 +757,13 @@ public class CommandPos {
                                 "dim  (optional): Specify dimension. If omitted, current dim of player is used. Use '+' as a wildcard.\n" + //
                                 "list (optional): Specify list. If omitted, 'default' list is used. Use '+' as a wildcard.\n" + //
                                 "name           : Specify name of position. Use '+' as a wildcard."));
+            }
+            else if (query.equals("lists")) {
+                // Display help for "get" command 
+                player.sendSystemMessage(
+                    Component.literal("Help for command 'lists':\n" + // 
+                                      "Retrieve all lists of saved positions\nUsage: ")
+                        .append(getColoredString("/pos lists\n", COLOR_BLUE)));
             }
             else {
                 MutableComponent msg = Component.literal("SimplePositions HELP (1/3):\n" + // 
